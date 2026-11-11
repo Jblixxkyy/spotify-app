@@ -1,0 +1,18 @@
+# Runtime data (SQLite DB, audio library, sessions, tokens) — never publish
+data/
+
+# Local helper binaries (Docker image installs its own; Windows users run setup-windows.bat)
+tools/
+
+# Stale duplicate / dated local snapshots — dev history only
+spotify-app/
+pre-*/
+.backup-*/
+.ios-audit-backup-*/
+
+# Editor/OS noise + dated in-tree backups
+*.bak-*
+node_modules/
+Thumbs.db
+Desktop.ini
+.DS_Store

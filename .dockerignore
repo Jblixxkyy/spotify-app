@@ -1,0 +1,12 @@
+data
+tools
+*.md
+node_modules
+
+# Local snapshots and stale duplicate — never bake into the image
+spotify-app
+pre-*
+.backup-*
+.ios-audit-backup-*
+*.bak-*
+.git

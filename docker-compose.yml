@@ -1,0 +1,18 @@
+services:
+  my-spotify:
+    build: .
+    container_name: my-spotify
+    restart: unless-stopped
+    ports:
+      - "8378:8378"
+    volumes:
+      - ./data:/app/data
+      - ./js:/app/js:ro
+      - ./css:/app/css:ro
+      - ./index.html:/app/index.html:ro
+      - ./sw.js:/app/sw.js:ro
+      - ./manifest.json:/app/manifest.json:ro
+      - ./server.js:/app/server.js:ro
+      - ./youtube.js:/app/youtube.js:ro
+    environment:
+      - PORT=8378
