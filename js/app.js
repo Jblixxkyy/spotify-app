@@ -2895,7 +2895,7 @@ function openSetupWizard() {
     <div class="modal" role="dialog" aria-modal="true">
       <div class="modal-head"><div class="modal-title">Set up your server</div></div>
       <div class="confirm-sub">One-time setup. Enter the setup code shown in the terminal where the server is running, then create the admin account.</div>
-      <input type="text" class="modal-input setup-code" id="setupCode" placeholder="Setup code (from the server terminal)" autocomplete="off" spellcheck="false">
+      <input type="text" class="modal-input setup-code" id="setupCode" placeholder="Setup code" autocomplete="off" spellcheck="false">
       <input type="text" class="modal-input" id="setupName" placeholder="Your name" autocomplete="name">
       <input type="email" class="modal-input" id="setupEmail" placeholder="Email" autocomplete="email">
       <input type="password" class="modal-input" id="setupPass" placeholder="Password (min 8 characters)" autocomplete="new-password">
