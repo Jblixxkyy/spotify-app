@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
   <script>(function(){var p=location.pathname;if(p.endsWith('/index.html')){location.replace(p.slice(0,-10)+location.search+location.hash);return;}if(p!=='/'&&!p.endsWith('/')&&p.split('/').pop().indexOf('.')===-1){location.replace(p+'/'+location.search+location.hash);}})();</script>
-<link rel="stylesheet" href="css/style.css?v=33">
+<link rel="stylesheet" href="css/style.css?v=35">
 </head>
 <body>
 <div class="app">
@@ -35,10 +35,6 @@
       <div class="nav-item" data-nav="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
         Search
-      </div>
-      <div class="nav-item" data-nav="youtube">
-        <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M21.6 7.2a2.7 2.7 0 0 0-1.9-1.9C18 4.8 12 4.8 12 4.8s-6 0-7.7.5A2.7 2.7 0 0 0 2.4 7.2 28.3 28.3 0 0 0 2 12a28.3 28.3 0 0 0 .4 4.8 2.7 2.7 0 0 0 1.9 1.9c1.7.5 7.7.5 7.7.5s6 0 7.7-.5a2.7 2.7 0 0 0 1.9-1.9A28.3 28.3 0 0 0 22 12a28.3 28.3 0 0 0-.4-4.8zM10 15.2V8.8l5.2 3.2-5.2 3.2z"/></svg>
-        YouTube Music
       </div>
       <div class="nav-item" data-nav="library">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v18M9 3v18M14 3l5.5 17.5"/></svg>
@@ -73,10 +69,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
       <span>Search</span>
     </button>
-    <button class="tab" data-tab="youtube">
-      <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M21.6 7.2a2.7 2.7 0 0 0-1.9-1.9C18 4.8 12 4.8 12 4.8s-6 0-7.7.5A2.7 2.7 0 0 0 2.4 7.2 28.3 28.3 0 0 0 2 12a28.3 28.3 0 0 0 .4 4.8 2.7 2.7 0 0 0 1.9 1.9c1.7.5 7.7.5 7.7.5s6 0 7.7-.5a2.7 2.7 0 0 0 1.9-1.9A28.3 28.3 0 0 0 22 12a28.3 28.3 0 0 0-.4-4.8zM10 15.2V8.8l5.2 3.2-5.2 3.2z"/></svg>
-      <span>YouTube</span>
-    </button>
     <button class="tab" data-tab="library">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v18M9 3v18M14 3l5.5 17.5"/></svg>
       <span>Library</span>
@@ -98,8 +90,8 @@
         <input type="text" class="search" id="searchInput" placeholder="Search your music&#8230;" autocomplete="off">
       </div>
       <button class="pill-btn" id="addMusicBar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add music
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        <span class="add-music-label">Add music</span>
       </button>
       <button class="pill-btn auth-pill" id="authBtn" style="display:none">Sign in</button>
       <div class="user-btn" id="userBtn" role="button" tabindex="0" style="display:none" title="Account">?</div>
@@ -288,7 +280,7 @@
   <div class="toast-root" id="toastRoot"></div>
 
   <script src="js/audio-engine.js?v=9"></script>
-  <script src="js/app.js?v=39"></script>
+  <script src="js/app.js?v=43"></script>
 </div>
 </body>
 </html>

@@ -1002,6 +1002,81 @@ async function handleApi(req, res, pathname) {
     }
   }
 
+  /* ---- "For You": personalized shelves from the linked Google account ----
+     Built from real listening signals the YouTube Data API exposes:
+     liked videos, and artist "radio mixes" derived from the user's top artists
+     (library + liked channels). Also includes YouTube Music browse shelves
+     (Quick picks, Music videos, etc.). True "Mixed for you / My Mix" playlists
+     are ML-private and NOT exposed by the official API, so mixes are seeded
+     per-artist via search. */
+  if (pathname === '/api/youtube/mine/foryou' && method === 'GET') {
+    try {
+      const shelves = [];
+      // 1) Recently liked — the strongest "I listen to this" signal, music only
+      let liked = [];
+      try {
+        const body = await ytApi(user.id, 'videos', { part: 'snippet,contentDetails', myRating: 'like', maxResults: '50' });
+        liked = (body.items || []).map((it) => ({
+          videoId: it.id,
+          title: String((it.snippet && it.snippet.title) || ''),
+          channel: String((it.snippet && it.snippet.channelTitle) || ''),
+          duration: iso8601Seconds(it.contentDetails && it.contentDetails.duration),
+          categoryId: String((it.snippet && it.snippet.categoryId) || ''),
+        }));
+        // Prefer actual music videos when there are enough of them
+        const musicOnly = liked.filter((e) => e.categoryId === '10');
+        if (musicOnly.length >= 6) liked = musicOnly;
+      } catch { }
+      if (liked.length) shelves.push({ title: 'Recently liked', items: liked.slice(0, 16) });
+
+      // 2) YouTube Music browse shelves (music sections: Quick picks, Music videos, etc.)
+      // Use the same browse logic as the public endpoint
+      try {
+        const browseData = await yt.browseYouTubeMusic();
+        if (browseData && browseData.length) {
+          for (const s of browseData.slice(0, 3)) {
+            if (s.items && s.items.length >= 3) {
+              shelves.push({ title: s.title, items: s.items.slice(0, 20) });
+            }
+          }
+        }
+      } catch { }
+
+      // 3) Top artists -> seeded radio mixes (search "<artist> mix")
+      const artistCounts = new Map();
+      const bumpArtist = (name) => {
+        const a = String(name || '').trim();
+        if (a.length < 2 || a.length > 60) return;
+        if (/^(unknown|various|youtube|music|video|audio)$/i.test(a)) return;
+        artistCounts.set(a, (artistCounts.get(a) || 0) + 1);
+      };
+      for (const e of liked) {
+        const dash = e.title.split(/\s+-\s+/);
+        if (dash.length > 1) bumpArtist(dash[0]);
+        bumpArtist(String(e.channel || '').replace(/\s*(VEVO|- ?Topic|Topic|Official|Records?|Music|TV|Promotion)$/i, ''));
+      }
+      try {
+        const lib = db.prepare('SELECT artist, COUNT(*) AS c FROM songs WHERE user_id = ? GROUP BY artist ORDER BY c DESC LIMIT 15').all(user.id);
+        for (const row of lib) bumpArtist(row.artist);
+      } catch { }
+      const topArtists = [...artistCounts.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]).slice(0, 4);
+      if (topArtists.length) {
+        const mixes = (await Promise.all(topArtists.map(async (artist) => {
+          try {
+            const r = await yt.searchYouTube(`${artist} songs mix`, 12);
+            return { artist, items: (r.results || []).slice(0, 12) };
+          } catch { return { artist, items: [] }; }
+        }))).filter((m) => m.items.length >= 3);
+        for (const m of mixes.slice(0, 3)) {
+          shelves.push({ title: `${m.artist} mix`, items: m.items });
+        }
+      }
+      return json(res, 200, { shelves, artists: topArtists });
+    } catch (err) {
+      return json(res, 422, { error: String((err && err.message) || 'Could not build your feed') });
+    }
+  }
+
   // Bulk import: a playlist link, a blob of pasted links, or a list of URLs.
   // Songs already in the library (or already downloading) are skipped.
   if (pathname === '/api/youtube/import' && method === 'POST') {

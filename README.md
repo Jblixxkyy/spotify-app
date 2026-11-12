@@ -26,7 +26,7 @@ Import from YouTube, upload your own files, and listen anywhere — even offline
 
 | | |
 |---|---|
-| 📥 **YouTube Import** | Search, browse, single tracks, or whole playlists in bulk. Import your liked songs + YouTube Music playlists with Google sign-in. |
+| 📥 **YouTube Import** | Search, single tracks, or whole playlists in bulk. Import your liked songs + YouTube playlists with Google sign-in. |
 | 📱 **Offline-First PWA** | Install it on your phone like a real app. Service worker caches the shell + up to ~600 MB of audio — music keeps playing with no connection. |
 | 👥 **Multi-User** | First account becomes admin. Friends & family get their own libraries. Close registrations anytime in admin settings. |
 | 🧩 **Zero Dependencies** | The whole server is one file — `server.js` — built only on Node built-ins (`http`, `sqlite`, `crypto`). Nothing to break on update. |

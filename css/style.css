@@ -1010,7 +1010,15 @@ textarea.modal-input { resize: vertical; min-height: 66px; font-family: inherit;
     border-bottom: 1px solid rgba(255,255,255,0.06);
   }
   .search-wrap { max-width: none; }
-  #addMusicBar { display: none; }
+  /* Add music is back in the top bar on phones, as a round icon
+     button — the full pill squeezed the search field too narrow. */
+  #addMusicBar .add-music-label { display: none; }
+  #addMusicBar {
+    padding: 0;
+    width: 44px; height: 44px;
+    justify-content: center;
+  }
+  #addMusicBar svg { width: 20px; height: 20px; }
   .top-bar { gap: 10px; }
   .search { font-size: 16px; padding: 12px 18px 12px 44px; }
   .search::placeholder { font-size: 16px; }
@@ -1203,211 +1211,6 @@ body.np-open .offline-badge { display: none !important; }
   .offline-hero-actions .ghost-btn { flex: 1; }
 }
 
-/* ---------------- YouTube Music browse ---------------- */
-.yt-music-section {
-  padding: 24px 24px 48px 24px;
-  max-width: 1600px;
-  margin: 0 auto;
-}
-.yt-music-header {
-  margin-bottom: 24px;
-}
-.yt-music-brand {
-  display: flex; align-items: center; gap: 14px;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-.yt-music-brand svg {
-  width: 44px; height: 44px; flex-shrink: 0;
-  background: linear-gradient(135deg, #ff0033 0%, #cc0028 100%); 
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 12px rgba(255,0,51,0.25);
-}
-.yt-music-title { font-size: 26px; font-weight: 900; letter-spacing: -0.4px; }
-.yt-music-sub { font-size: 14px; color: var(--text-sub); margin-top: 3px; }
-.yt-search-wrap { position: relative; max-width: 860px; margin-bottom: 28px; }
-.yt-music-tabs {
-  display: flex; gap: 8px; margin: 16px 0 4px 0;
-}
-.yt-tab {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  color: var(--text-sub);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-.yt-tab:hover { background: rgba(255,255,255,0.1); }
-.yt-tab.active {
-  background: rgba(255,0,51,0.18);
-  border-color: rgba(255,0,51,0.5);
-  color: #fff;
-}
-.yt-search-input {
-  width: 100%;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 500px;
-  padding: 14px 22px 14px 52px;
-  color: var(--text);
-  font-size: 15px;
-  outline: none;
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-}
-.yt-search-input:hover { background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.18); }
-.yt-search-input:focus { background: rgba(255,255,255,0.12); border-color: #7f7f7f; box-shadow: 0 0 0 3px rgba(255,255,255,0.06); }
-.yt-search-input::placeholder { color: var(--text-muted); }
-.yt-search-input:hover { background: rgba(255,255,255,0.1); }
-.yt-search-input:focus { background: rgba(255,255,255,0.12); border-color: #7f7f7f; }
-.yt-search-wrap .search-icon { left: 16px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; }
-.yt-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 18px; }
-.yt-result-card {
-  background: transparent;
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  position: relative;
-  padding: 0;
-  transition: transform 0.18s, background 0.25s;
-}
-.yt-result-card:hover { 
-  background: rgba(255,255,255,0.04);
-  transform: translateY(-2px);
-}
-.yt-result-art {
-  width: 100%;
-  padding-bottom: 100%;
-  background: rgba(0,0,0,0.3);
-  border-radius: 8px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-}
-.yt-result-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.yt-result-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.5));
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity 0.18s;
-}
-.yt-result-card:hover .yt-result-overlay { opacity: 1; }
-.yt-play-btn {
-  background: none; border: none; cursor: pointer;
-  transition: transform 0.15s;
-}
-.yt-play-btn:hover { transform: scale(1.08); }
-.yt-play-btn svg { width: 52px; height: 52px; fill: #fff; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5)); }
-.yt-badge {
-  position: absolute; bottom: 8px; left: 8px; right: 8px;
-  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-  color: #dcdcdc; font-size: 10px; font-weight: 800;
-  padding: 3px 8px; border-radius: 20px; text-align: center;
-  z-index: 2;
-}
-.yt-badge.in-library { background: rgba(29,185,84,0.9); color: #000; }
-.yt-badge.downloading { background: rgba(255,255,255,0.9); color: #000; }
-.yt-result-info { padding: 10px 6px 6px 6px; }
-.yt-result-title {
-  font-size: 14px; font-weight: 700; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  line-height: 1.3;
-}
-.yt-result-meta {
-  font-size: 12px; color: var(--text-muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px;
-}
-.yt-result-actions {
-  position: absolute; top: 8px; right: 8px;
-  display: flex; gap: 4px; opacity: 0; transition: opacity 0.18s;
-  z-index: 3;
-}
-.yt-result-card:hover .yt-result-actions { opacity: 1; }
-.yt-result-actions .icon-btn {
-  width: 32px; height: 32px; min-height: 32px; /* keep square: override global min-height:44 */
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(4px);
-}
-.yt-add-btn.added svg { stroke: var(--green); }
-.yt-loading {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 32px; color: var(--text-sub); font-size: 13px;
-}
-.yt-loading .spinner { width: 28px; height: 28px; }
-.yt-load-more {
-  display: block; margin: 16px auto 0;
-  background: none; border: 1px solid var(--border);
-  color: var(--text-sub); font-size: 13px; font-weight: 700;
-  padding: 8px 24px; border-radius: 500px; cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
-}
-.yt-load-more:hover { color: var(--text); border-color: #6a6a6a; background: rgba(255,255,255,0.04); }
-.yt-no-results, .yt-error {
-  grid-column: 1 / -1;
-  text-align: center; padding: 40px 20px; color: var(--text-sub);
-}
-.yt-no-results svg { width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 14px; }
-.yt-error { color: #ff8a76; background: rgba(229,83,61,0.1); border: 1px solid rgba(229,83,61,0.35); border-radius: 8px; max-width: 480px; margin: 0 auto; }
-
-@media (max-width: 900px) {
-  .yt-results { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-  .yt-play-btn svg { width: 44px; height: 44px; }
-}
-
-.yt-shelf-section {
-  grid-column: 1 / -1;
-  margin-bottom: 40px;
-}
-.yt-shelf-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-.yt-shelf-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: -0.2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-.yt-shelf-search { flex-shrink: 0; }
-.yt-shelf-grid {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 4px 4px 8px 4px;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
-}
-.yt-shelf-grid::-webkit-scrollbar {
-  height: 8px;
-}
-.yt-shelf-grid::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.15);
-  border-radius: 4px;
-}
-.yt-shelf-grid .yt-result-card {
-  flex: 0 0 190px;
-  scroll-snap-align: start;
-}
-
-@media (max-width: 900px) {
-  .yt-shelf-grid .yt-result-card {
-    flex: 0 0 160px;
-  }
-}
-
 /* iOS/iPadOS accessibility and tablet refinements */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 @media (min-width: 901px) and (max-width: 1180px) and (pointer: coarse) { .sidebar { width: 230px; } .main { min-width: 0; } .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
@@ -1422,3 +1225,14 @@ html,body{min-height:100%;height:100vh;height:100dvh}body{overscroll-behavior-y:
 @media (orientation:landscape) and (max-height:600px){.main{padding-top:max(12px,env(safe-area-inset-top));padding-bottom:116px}.top-bar{margin-bottom:10px}.player{height:72px}.mobile-tabs{display:none}}
 @media (prefers-contrast:more){:root{--border:#666;--progress-bg:#888}.btn,.ghost-btn,.primary-btn,input{border-width:2px}}
 @media (prefers-reduced-motion:reduce){.np-overlay,.toast,*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Mobile mini player: it sits on top of the tab bar, not at the
+   viewport bottom, so it must be flush with the tabs (64px) and
+   carry no safe-area padding of its own — the old calc(64px + safe)
+   left a gap with scrolled content showing through, and the
+   safe-area bottom padding shrank the bar's content box until the
+   track info overflowed it. Placed last so it beats the later global
+   .player{padding-bottom:env(safe-area-inset-bottom)} rule. */
+@media (max-width: 900px) {
+  .player { bottom: 64px; padding-bottom: 0; }
+}
