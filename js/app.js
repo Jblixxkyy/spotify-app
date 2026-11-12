@@ -921,6 +921,7 @@ function updateMediaSession(song) {
 const MAX_LOAD_RETRIES = 2;
 let loadRetryCount = 0;
 let isLoading = false;
+let lastPlaybackErrorSongId = null;
 
 async function initAudioEngine() {
   if (!audioEngine) {
@@ -933,19 +934,35 @@ async function initAudioEngine() {
         await nextSong();
       }
     };
-    audioEngine.onTimeUpdate = (current, duration) => {
-      const pct = duration > 0 ? (current / duration) * 100 : 0;
+    audioEngine.onTimeUpdate = (current) => {
+      // One duration source for every progress writer: playbackDuration().
+      // The engine's raw duration and the stored metadata disagree on some
+      // tracks, and two writers with two durations made the slider flicker.
+      const duration = playbackDuration();
+      const shown = duration > 0 ? Math.min(current, duration) : current;
+      const pct = duration > 0 ? Math.max(0, Math.min(100, (shown / duration) * 100)) : 0;
       els.playerProgressFill.style.width = `${pct}%`;
-      els.playerCurrent.textContent = formatTime(current);
+      els.playerCurrent.textContent = formatTime(shown);
       if (els.npProgressFill) els.npProgressFill.style.width = `${pct}%`;
-      if (els.npCurrent) els.npCurrent.textContent = formatTime(current);
+      if (els.npCurrent) els.npCurrent.textContent = formatTime(shown);
       els.playerDuration.textContent = duration > 0 ? formatTime(duration) : '--:--';
       maybeAutoCrossfade(current, duration);
     };
     audioEngine.onError = (err) => {
       console.error('AudioEngine error:', err);
-      toast(`Playback error: ${err.message}`, 'error');
+      // A mid-playback error used to leave the queue stuck on a dead track.
+      // First error for a song: retry it once. Second error: move on.
+      const id = currentSong ? currentSong.id : null;
+      if (id && id !== lastPlaybackErrorSongId) {
+        lastPlaybackErrorSongId = id;
+        toast(`Playback error: ${err.message} — retrying…`, 'error');
+        audioEngine.resume();
+        return;
+      }
+      toast(`Playback error: ${err.message} — skipping…`, 'error');
+      tryNextSong();
     };
+    audioEngine.displayDuration = () => playbackDuration();
   }
 }
 
@@ -987,6 +1004,7 @@ async function loadSong(song, autoplay = true, isRetry = false) {
     await audioEngine.load({ ...song, url: src, blobUrl: src });
     isLoading = false;
     loadRetryCount = 0;
+    lastPlaybackErrorSongId = null;
     if (song.replayGain && song.replayGain.gainDb) {
       audioEngine.setReplayGain(song.replayGain.gainDb);
     }
@@ -1140,12 +1158,23 @@ function playbackDuration() {
   if (audioEngine) {
     const reported = audioEngine.getDuration();
     const known = currentSong && currentSong.duration > 0 ? currentSong.duration : 0;
-    if (known && reported && Math.abs(reported - known) / known > 0.1) return known;
+    if (known && reported && Math.abs(reported - known) / known > 0.1) {
+      // The stored length is only trusted until the song plays past it —
+      // past that point the stored length is proven wrong (short YouTube
+      // metadata) and the element's own estimate is the better display.
+      const current = audioEngine.getCurrentTime() || 0;
+      if (current > known + 1) return reported;
+      return known;
+    }
     return reported || known || 0;
   }
   const reported = isFinite(fallbackAudio.duration) && fallbackAudio.duration > 0 ? fallbackAudio.duration : 0;
   const known = currentSong && currentSong.duration > 0 ? currentSong.duration : 0;
-  if (known && reported && Math.abs(reported - known) / known > 0.1) return known;
+  if (known && reported && Math.abs(reported - known) / known > 0.1) {
+    const current = fallbackAudio.currentTime || 0;
+    if (current > known + 1) return reported;
+    return known;
+  }
   return reported || known || 0;
 }
 
@@ -1154,11 +1183,12 @@ function startProgress() {
   progressInterval = setInterval(() => {
     const duration = playbackDuration();
     const current = audioEngine ? audioEngine.getCurrentTime() : (fallbackAudio.currentTime || 0);
-    const pct = duration > 0 ? (current / duration) * 100 : 0;
+    const shown = duration > 0 ? Math.min(current, duration) : current;
+    const pct = duration > 0 ? Math.max(0, Math.min(100, (shown / duration) * 100)) : 0;
     els.playerProgressFill.style.width = `${pct}%`;
-    els.playerCurrent.textContent = formatTime(current);
+    els.playerCurrent.textContent = formatTime(shown);
     if (els.npProgressFill) els.npProgressFill.style.width = `${pct}%`;
-    if (els.npCurrent) els.npCurrent.textContent = formatTime(current);
+    if (els.npCurrent) els.npCurrent.textContent = formatTime(shown);
     els.playerDuration.textContent = duration > 0
       ? formatTime(duration)
       : '--:--';
@@ -1182,6 +1212,10 @@ function maybeAutoCrossfade(current, duration) {
 }
 
 async function nextSong(opts = {}) {
+  // A track change already in flight (e.g. the auto-crossfade fired and the
+  // song then ended): don't advance the index a second time, or the queue
+  // desyncs from what's playing. The in-flight load finishes the change.
+  if (isLoading) return false;
   // Track navigation must be deterministic on mobile/iOS.  The preloaded
   // double-deck is an optimization, not a requirement for changing tracks;
   // falling back directly to loadSong avoids stale/partially-armed decks.
@@ -1193,6 +1227,7 @@ async function nextSong(opts = {}) {
 }
 
 async function prevSong() {
+  if (isLoading) return;
   if (!queue.length) return;
   // Previous-track controls (including the lock screen) replay the preceding queue item.
   queueIndex = getPrevIndex();

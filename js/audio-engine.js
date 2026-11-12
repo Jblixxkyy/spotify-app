@@ -33,6 +33,7 @@ class AudioEngine {
     this.onEnded = null;
     this.onTimeUpdate = null;
     this.onError = null;
+    this.displayDuration = null; // app-provided () => seconds; the lock-screen position uses the same duration the UI shows
     this._eqGains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     this._fade = null; // { outDeck, inDeck, startedAt, durMs, outStart, timer }
     this._pendingPreload = null;
@@ -78,8 +79,19 @@ class AudioEngine {
         reject(err);
         return;
       }
+      if (deck === this._nxt) {
+        // A preloaded next track that fails to load must not be swapped in
+        // later: the swap would "succeed" on a dead deck and wedge the
+        // queue on a track that never plays and never ends.
+        this.nextSong = null;
+        this.nextBuffer = null;
+        deck.song = null;
+        return;
+      }
       if (deck === this._cur && this.currentSong && this.onError) {
         try { this.onError(err); } catch (e) { /* app callback */ }
+        // Don't leave the lock screen showing "playing" on a dead track.
+        try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; } catch (e) {}
       }
     });
     el.addEventListener('canplay', () => {
@@ -125,8 +137,9 @@ class AudioEngine {
     if (!url) throw new Error('No audio source');
 
     this._cancelFade();
-    // Reuse the preloaded deck if it's armed with this very song.
-    if (this._nxt && this._nxt.song && song.id && this._nxt.song.id === song.id) {
+    // Reuse the preloaded deck if it's armed with this very song — and the
+    // preload actually succeeded (a failed preload leaves el.error set).
+    if (this._nxt && this._nxt.song && song.id && this._nxt.song.id === song.id && !this._nxt.el.error) {
       const old = this._cur;
       try { old.el.pause(); } catch (e) {}
       this._cur = this._nxt;
@@ -429,7 +442,10 @@ class AudioEngine {
     try {
       if ('mediaSession' in navigator && navigator.mediaSession.setPositionState) {
         const el = this._cur.el;
-        const dur = this.getDuration();
+        let dur = this.getDuration();
+        if (this.displayDuration) {
+          try { const d = this.displayDuration(); if (d > 0) dur = d; } catch (e) { /* fall back to reported */ }
+        }
         if (dur > 0 && isFinite(dur)) {
           navigator.mediaSession.setPositionState({
             duration: dur,
