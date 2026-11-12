@@ -18,6 +18,7 @@ let songs = [];
 let playlists = [];
 let queue = [];
 let queueIndex = -1;
+let queueSource = 'library'; // 'playlist' when the queue is a playlist's songs; a lone playlist song loops, a lone search/library song does not
 let progressInterval;
 let volume = 0.8;
 let isMuted = false;
@@ -609,7 +610,7 @@ async function loadQueueRecord() {
   return row || null;
 }
 async function saveQueueRecord() {
-  return tx(STORE_QUEUE, 'readwrite', (s) => { s.put({ id: 1, ids: queue.map(x => x.id), index: queueIndex }); return true; });
+  return tx(STORE_QUEUE, 'readwrite', (s) => { s.put({ id: 1, ids: queue.map(x => x.id), index: queueIndex, source: queueSource }); return true; });
 }
 let saveQueueTimer = null;
 function scheduleQueueSave() {
@@ -862,17 +863,27 @@ async function addSongFromFile(file) {
 
 /* ---------------- Queue & playback ---------------- */
 
-function setQueue(list, startIndex = 0, persist = true) {
+function setQueue(list, startIndex = 0, persist = true, source = 'library') {
   queue = list;
   queueIndex = Math.max(-1, Math.min(startIndex, list.length - 1));
+  queueSource = source;
   if (persist) scheduleQueueSave();
+}
+
+function queueSourceForView() {
+  return view === 'playlist' && currentPlaylistId ? 'playlist' : 'library';
 }
 
 function getNextIndex() {
   if (queue.length === 0) return -1;
   if (shuffle) return Math.floor(Math.random() * queue.length);
   if (repeatMode === 'one') return queueIndex;
-  return (queueIndex + 1) % queue.length;
+  if (repeatMode === 'all') return (queueIndex + 1) % queue.length;
+  // Repeat off: play through once and stop — except a playlist with a
+  // single song, which loops because there is nowhere else to go.
+  if (queueIndex + 1 < queue.length) return queueIndex + 1;
+  if (queue.length === 1 && queueSource === 'playlist') return 0;
+  return -1;
 }
 
 function getPrevIndex() {
@@ -918,6 +929,13 @@ function updateMediaSession(song) {
   } catch (err) { /* unsupported */ }
 }
 
+// Records a lock-screen / media-key action for the visibility diagnostic.
+function noteMediaAction(action) {
+  try {
+    localStorage.setItem('msLastAction', JSON.stringify({ action, at: Date.now(), hidden: document.hidden }));
+  } catch { /* private mode */ }
+}
+
 const MAX_LOAD_RETRIES = 2;
 let loadRetryCount = 0;
 let isLoading = false;
@@ -931,7 +949,8 @@ async function initAudioEngine() {
         audioEngine.seek(0);
         await audioEngine.resume();
       } else {
-        await nextSong();
+        const moved = await nextSong();
+        if (!moved && !isLoading) markStopped(); // end of the queue, repeat off: stop, don't show "playing" on a finished song
       }
     };
     audioEngine.onTimeUpdate = (current) => {
@@ -960,7 +979,7 @@ async function initAudioEngine() {
         return;
       }
       toast(`Playback error: ${err.message} — skipping…`, 'error');
-      tryNextSong();
+      tryNextSong().then((moved) => { if (!moved) markStopped(); }).catch(() => {});
     };
     audioEngine.displayDuration = () => playbackDuration();
   }
@@ -996,7 +1015,10 @@ async function loadSong(song, autoplay = true, isRetry = false) {
   } else {
     toast('This track has no playable source', 'warn');
     isLoading = false;
-    if (autoplay) await tryNextSong();
+    if (autoplay) {
+      const moved = await tryNextSong();
+      if (!moved) markStopped();
+    }
     return false;
   }
 
@@ -1036,16 +1058,24 @@ async function handleLoadError(autoplay, err) {
     return loadSong(currentSong, autoplay, true);
   }
   toast(`Unable to play: ${currentSong?.title || 'track'}`, 'error');
-  if (autoplay) await tryNextSong();
+  if (autoplay) {
+    const moved = await tryNextSong();
+    if (!moved) markStopped();
+  }
   return false;
 }
 
 async function tryNextSong() {
   if (!queue.length) return false;
   const nextIndex = getNextIndex();
-  if (nextIndex === queueIndex) return false;
+  if (nextIndex < 0 || nextIndex === queueIndex) return false;
   queueIndex = nextIndex;
   return loadSong(queue[queueIndex], true);
+}
+
+function markStopped() {
+  isPlaying = false;
+  updatePlayIcon();
 }
 
 function syncNowPlaying() {
@@ -1423,8 +1453,8 @@ async function prefetchUpcoming(count = 3) {
 }
 
 function nextQueueSong() {
-  if (queue.length < 2) return null;
-  return queue[(queueIndex + 1) % queue.length] || null;
+  const i = getNextIndex();
+  return i >= 0 ? queue[i] || null : null;
 }
 
 async function preloadNextQueueSong() {
@@ -1635,7 +1665,7 @@ async function playPlaylistNow(plId) {
   if (!p || !p.songIds.length) { toast('This playlist is empty', 'warn'); return; }
   const list = p.songIds.map(id => songs.find(s => s.id === id || s.cloudId === id)).filter(Boolean);
   if (!list.length) { toast('Songs missing from library', 'warn'); return; }
-  setQueue(list, 0);
+  setQueue(list, 0, true, 'playlist');
   await loadSong(list[0], true);
   toast(`Playing “${p.name}”`);
 }
@@ -1955,7 +1985,7 @@ function renderPlaylistDetail(root, list) {
   detail.querySelector('#plShuffle').addEventListener('click', async () => {
     if (!list.length) { toast('Playlist is empty', 'warn'); return; }
     const order = [...list].sort(() => Math.random() - 0.5);
-    setQueue(order, 0);
+    setQueue(order, 0, true, 'playlist');
     await loadSong(order[0], true);
   });
   detail.querySelector('#plBack').addEventListener('click', (e) => { e.preventDefault(); setView('library'); });
@@ -2205,7 +2235,7 @@ function pickAudioFiles() {
       if (me) pumpUploads();
       if (!currentSong) {
         const list = currentSongList();
-        setQueue(list.length ? list : songs, 0);
+        setQueue(list.length ? list : songs, 0, true, queueSourceForView());
       }
     }
   });
@@ -3232,11 +3262,11 @@ async function playSongFromCurrentContext(song) {
   const list = currentSongList();
   const idx = list.findIndex(s => s.id === song.id);
   if (idx === -1) {
-    setQueue([song], 0);
+    setQueue([song], 0, true, queueSourceForView());
     await loadSong(song, true);
     return;
   }
-  setQueue(list, idx);
+  setQueue(list, idx, true, queueSourceForView());
   await loadSong(list[idx], true);
 }
 
@@ -3481,6 +3511,7 @@ async function init() {
 
   if (queueRec && Array.isArray(queueRec.ids)) {
     queue = queueRec.ids.map(id => songs.find(s => s.id === id)).filter(Boolean);
+    queueSource = queueRec.source || 'library';
     if (queue.length && typeof queueRec.index === 'number' && queueRec.index >= 0 && queueRec.index < queue.length) {
       queueIndex = queueRec.index;
       const st = queue[queueIndex];
@@ -3545,16 +3576,33 @@ async function init() {
 
   if ('mediaSession' in navigator) {
     try {
-      navigator.mediaSession.setActionHandler('play', () => playAudio());
-      navigator.mediaSession.setActionHandler('pause', pauseAudio);
-      navigator.mediaSession.setActionHandler('nexttrack', () => nextSong());
-      navigator.mediaSession.setActionHandler('previoustrack', () => prevSong());
+      navigator.mediaSession.setActionHandler('play', () => { noteMediaAction('play'); playAudio(); });
+      navigator.mediaSession.setActionHandler('pause', () => { noteMediaAction('pause'); pauseAudio(); });
+      navigator.mediaSession.setActionHandler('nexttrack', () => { noteMediaAction('nexttrack'); nextSong(); });
+      navigator.mediaSession.setActionHandler('previoustrack', () => { noteMediaAction('previoustrack'); prevSong(); });
       // Track controls here; remove Safari's default 10-second seek actions.
       for (const action of ['seekbackward', 'seekforward']) {
         try { navigator.mediaSession.setActionHandler(action, null); } catch { /* unsupported */ }
       }
     } catch (err) { /* unsupported */ }
   }
+
+  // Lock-screen diagnostic: an action that arrives while the app is hidden
+  // gets one toast when the app is visible again, so a dead lock-screen
+  // button can be told apart from an action the app never received.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    try {
+      const raw = localStorage.getItem('msLastAction');
+      if (!raw) return;
+      localStorage.removeItem('msLastAction');
+      const rec = JSON.parse(raw);
+      if (rec.hidden && Date.now() - rec.at < 10 * 60 * 1000) {
+        const when = new Date(rec.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        toast(`Lock screen: ${rec.action} at ${when}`, 'ok', 4000);
+      }
+    } catch { /* ignore */ }
+  });
 
   if (IS_IOS) {
     setTimeout(() => toast('iOS: Add to Home Screen for full-screen playback and background audio.', 'ok', 8000), 2000);
