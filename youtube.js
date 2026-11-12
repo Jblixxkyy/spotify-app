@@ -161,6 +161,53 @@ function verifyTool(p, name) {
   }
 }
 
+// Forget cached tool lookups so a freshly installed tool is found on the
+// next toolPath() call (results — including "not found" — are cached).
+function clearToolCache() {
+  for (const k of Object.keys(toolCache)) delete toolCache[k];
+}
+
+// One-click yt-dlp install from the official GitHub release, into tools/ next
+// to youtube.js (the first place toolPath() looks). Windows gets yt-dlp.exe,
+// Linux yt-dlp_linux, macOS yt-dlp_macos — all static single binaries.
+const YTDLP_INSTALL_URLS = {
+  win32: 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe',
+  linux: 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux',
+  darwin: 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos',
+};
+
+async function installYtdlp() {
+  const existing = toolPath('yt-dlp');
+  if (existing) return { ok: true, alreadyInstalled: true, path: existing };
+  const url = YTDLP_INSTALL_URLS[process.platform];
+  if (!url) {
+    throw new YoutubeError(`Automatic install supports Windows, Linux and macOS — install yt-dlp on '${process.platform}' manually, then restart the server.`);
+  }
+  const toolsDir = path.join(__dirname, 'tools');
+  fs.mkdirSync(toolsDir, { recursive: true });
+  const dest = path.join(toolsDir, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+  let res;
+  try {
+    res = await fetch(url, { redirect: 'follow' });
+  } catch (err) {
+    throw new YoutubeError(`Could not reach github.com to download yt-dlp (${err.message}). Check the server's internet connection.`);
+  }
+  if (!res.ok || !res.body) {
+    throw new YoutubeError(`Could not download yt-dlp (HTTP ${res.status}) — install it manually from https://github.com/yt-dlp/yt-dlp#installation and restart the server.`);
+  }
+  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(dest));
+  if (process.platform !== 'win32') {
+    try { fs.chmodSync(dest, 0o755); } catch { }
+  }
+  clearToolCache();
+  const found = toolPath('yt-dlp');
+  if (!found) {
+    try { fs.rmSync(dest, { force: true }); } catch { }
+    throw new YoutubeError('yt-dlp was downloaded but did not run on this machine — install it manually and restart the server.');
+  }
+  return { ok: true, alreadyInstalled: false, path: found };
+}
+
 function extMime(ext) {
   const map = {
     mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/aac',
@@ -831,4 +878,6 @@ module.exports = {
   searchYouTube,
   innertubeSearch,
   browseYouTubeMusic,
+  installYtdlp,
+  clearToolCache,
 };

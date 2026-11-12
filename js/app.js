@@ -2899,6 +2899,12 @@ function openSetupWizard() {
       <input type="text" class="modal-input" id="setupName" placeholder="Your name" autocomplete="name">
       <input type="email" class="modal-input" id="setupEmail" placeholder="Email" autocomplete="email">
       <input type="password" class="modal-input" id="setupPass" placeholder="Password (min 8 characters)" autocomplete="new-password">
+      <div class="setup-tools" id="setupTools">
+        <div class="setup-tools-title">YouTube downloads</div>
+        <div class="setup-tools-row"><span class="chip" id="setupYtdlpChip">yt-dlp: checking…</span><button class="ghost-btn small" id="setupInstallYtdlp" style="display:none">Install yt-dlp</button></div>
+        <div class="setup-tools-row"><span class="chip" id="setupFfmpegChip">ffmpeg: checking…</span></div>
+        <div class="setup-tools-note">yt-dlp is what downloads songs from YouTube. Install it now, or later from Server settings.</div>
+      </div>
       <div class="auth-error" id="setupError"></div>
       <div class="modal-actions">
         <button class="primary-btn" id="setupGo">Create account</button>
@@ -2912,6 +2918,33 @@ function openSetupWizard() {
   const passEl = wrap.querySelector('#setupPass');
   const errEl = wrap.querySelector('#setupError');
   const goEl = wrap.querySelector('#setupGo');
+  const toolsBox = wrap.querySelector('#setupTools');
+  const ytdlpChip = wrap.querySelector('#setupYtdlpChip');
+  const ffmpegChip = wrap.querySelector('#setupFfmpegChip');
+  const installBtn = wrap.querySelector('#setupInstallYtdlp');
+  const renderTools = (t) => {
+    ytdlpChip.textContent = t.ytdlp ? 'yt-dlp: installed' : 'yt-dlp: not installed';
+    ytdlpChip.classList.toggle('ok', !!t.ytdlp);
+    ffmpegChip.textContent = t.ffmpeg ? 'ffmpeg: installed' : 'ffmpeg: not installed';
+    ffmpegChip.classList.toggle('ok', !!t.ffmpeg);
+    installBtn.style.display = (!t.ytdlp && t.canManage) ? '' : 'none';
+  };
+  apiJson('/api/tools/status').then(renderTools).catch(() => { toolsBox.style.display = 'none'; });
+  installBtn.addEventListener('click', async () => {
+    installBtn.disabled = true;
+    installBtn.textContent = 'Installing…';
+    errEl.textContent = '';
+    try {
+      await apiJson('/api/tools/install-ytdlp', { method: 'POST' });
+      renderTools(await apiJson('/api/tools/status'));
+      toast('yt-dlp installed');
+    } catch (err) {
+      errEl.textContent = err.message;
+    } finally {
+      installBtn.disabled = false;
+      installBtn.textContent = 'Install yt-dlp';
+    }
+  });
   setTimeout(() => codeEl.focus(), 60);
   const submit = async () => {
     errEl.textContent = '';
@@ -2976,6 +3009,9 @@ async function openServerSettings() {
       ${fld('Max upload size per song, MB', 'maxUploadMb', 'number')}
       <div class="settings-row inline"><label>Allow people to create accounts</label><input type="checkbox" id="srvReg" ${s.registrationOpen ? 'checked' : ''}></div>
       <div class="settings-row inline"><label>Secure cookies (only when behind HTTPS)</label><input type="checkbox" id="srvSecure" ${s.secureCookies ? 'checked' : ''}></div>
+      <div class="srv-section">Tools</div>
+      <div class="settings-row inline"><label>yt-dlp (YouTube downloads)</label><span><span class="chip" id="srvYtdlp">checking…</span> <button class="ghost-btn small" id="srvInstallYtdlp" style="display:none">Install</button></span></div>
+      <div class="settings-row inline"><label>ffmpeg (audio conversion)</label><span class="chip" id="srvFfmpeg">checking…</span></div>
       <div class="srv-section">Google sign-in</div>
       ${fld('Client ID', 'googleClientId')}
       ${fld('Client secret', 'googleClientSecret', 'password')}
@@ -3009,6 +3045,35 @@ async function openServerSettings() {
       <div class="srv-user-info"><div class="srv-user-name">${escapeHtml(u.name || u.email)}${u.role === 'admin' ? ' <span class="chip">admin</span>' : ''}</div><div class="srv-user-sub">${escapeHtml(u.email)} · ${u.songs} songs · ${u.provider === 'password' ? 'email' : escapeHtml(u.provider)}</div></div>
       <button class="ghost-btn small danger srv-remove ${u.role === 'admin' ? 'disabled' : ''}" data-id="${u.id}" ${u.role === 'admin' ? 'disabled' : ''}>Remove</button>
     </div>`).join('');
+
+  const srvYtdlp = wrap.querySelector('#srvYtdlp');
+  const srvFfmpeg = wrap.querySelector('#srvFfmpeg');
+  const srvInstall = wrap.querySelector('#srvInstallYtdlp');
+  const renderSrvTools = (t) => {
+    srvYtdlp.textContent = t.ytdlp ? 'installed' : 'not installed';
+    srvYtdlp.classList.toggle('ok', !!t.ytdlp);
+    srvFfmpeg.textContent = t.ffmpeg ? 'installed' : 'not installed';
+    srvFfmpeg.classList.toggle('ok', !!t.ffmpeg);
+    srvInstall.style.display = (!t.ytdlp && t.canManage) ? '' : 'none';
+  };
+  apiJson('/api/tools/status').then(renderSrvTools).catch(() => {
+    srvYtdlp.textContent = 'unknown';
+    srvFfmpeg.textContent = 'unknown';
+  });
+  srvInstall.addEventListener('click', async () => {
+    srvInstall.disabled = true;
+    srvInstall.textContent = 'Installing…';
+    try {
+      await apiJson('/api/tools/install-ytdlp', { method: 'POST' });
+      renderSrvTools(await apiJson('/api/tools/status'));
+      toast('yt-dlp installed');
+    } catch (err) {
+      wrap.querySelector('#srvError').textContent = err.message;
+    } finally {
+      srvInstall.disabled = false;
+      srvInstall.textContent = 'Install';
+    }
+  });
 
   const close = () => wrap.remove();
   wrap.querySelector('#srvClose').addEventListener('click', close);

@@ -1,6 +1,6 @@
 'use strict';
 
-const SHELL_CACHE = 'myspotify-shell-v41';
+const SHELL_CACHE = 'myspotify-shell-v42';
 const AUDIO_CACHE = 'myspotify-audio-v1';
 // Album art for YouTube songs lives on remote thumbnail hosts (i.ytimg.com).
 // Cache those images so covers still show offline. Capped by count —

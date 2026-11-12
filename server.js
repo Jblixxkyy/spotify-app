@@ -774,6 +774,29 @@ async function handleApi(req, res, pathname) {
     return json(res, 200, { ok: true });
   }
 
+  // ---- yt-dlp bootstrap: allowed during first-run setup (wizard), admin-only afterwards ----
+  const adminsExistNow = !!db.prepare('SELECT id FROM users WHERE role = ? LIMIT 1').get('admin');
+  const toolsAllowed = !adminsExistNow || (user && user.role === 'admin');
+
+  if (pathname === '/api/tools/status' && method === 'GET') {
+    return json(res, 200, {
+      ytdlp: !!yt.toolPath('yt-dlp'),
+      ffmpeg: !!yt.toolPath('ffmpeg'),
+      canManage: toolsAllowed,
+    });
+  }
+
+  if (pathname === '/api/tools/install-ytdlp' && method === 'POST') {
+    if (!toolsAllowed) return json(res, 403, { error: 'Admin only' });
+    try {
+      const r = await yt.installYtdlp();
+      console.log(`[tools] yt-dlp ${r.alreadyInstalled ? 'already present' : 'installed'} -> ${r.path}`);
+      return json(res, 200, { ok: true, path: r.path, ytdlp: !!yt.toolPath('yt-dlp') });
+    } catch (err) {
+      return json(res, err instanceof yt.YoutubeError ? 400 : 500, { error: err.message || 'yt-dlp install failed' });
+    }
+  }
+
   if (pathname === '/api/auth/register' && method === 'POST') {
     if (config.registration_open === false) {
       const admin = getUser(req);
